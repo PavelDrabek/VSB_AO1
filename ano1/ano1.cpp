@@ -50,6 +50,21 @@ void Tutorial()
 	cv::waitKey(0); // wait until keypressed
 }
 
+cv::Mat LoadGrayscaleImg(std::string path, int _type)
+{
+	cv::Mat img = cv::imread(path, CV_LOAD_IMAGE_COLOR);
+	cv::Mat gray_img;
+	cv::Mat gray_32f_img;
+
+	// convert input color image to grayscale one, CV_BGR2GRAY specifies direction of conversion
+	cv::cvtColor(img, gray_img, CV_BGR2GRAY);
+	// convert grayscale image from 8 bits to 32 bits, resulting values will be in the interval 0.0 - 1.0
+	gray_img.convertTo(gray_32f_img, _type, 1.0 / 255.0);
+
+	return gray_32f_img;
+}
+
+template <typename T>
 float Convolution(cv::Mat img, int y, int x, cv::Mat mask) 
 {
 	float value = 0;
@@ -60,38 +75,46 @@ float Convolution(cv::Mat img, int y, int x, cv::Mat mask)
 			if (aty < 0 || aty >= img.rows || atx < 0 || atx >= img.cols) {
 				continue;
 			}
-			value += img.at<float>(aty, atx) * mask.at<float>(i, j);
+			value += img.at<T>(aty, atx) * mask.at<float>(i, j);
 		}
 	}
 
 	return value;
 }
 
+template <typename T>
+cv::Mat Gauss(cv::Mat source, int _type)
+{
+	cv::Mat gauss(source.rows, source.cols, _type);
+	cv::Mat maskGaus = cv::Mat(3, 3, CV_32FC1, new float[9]{ 1, 2, 1, 2, 4, 2, 1, 2, 1 });
+	float maskSum = 1.0f / 16.0f;
+	for (int y = 0; y < source.rows; y++) {
+		for (int x = 0; x < source.cols; x++) {
+			float f = Convolution<T>(source, y, x, maskGaus) * maskSum;
+			gauss.at<T>(y, x) = f;
+		}
+	}
+
+	return gauss;
+}
+
 void Sobel(cv::String path) 
 {
-	cv::Mat img = cv::imread(path, CV_LOAD_IMAGE_COLOR); 
-	cv::Mat gray_img; 
-	cv::Mat gray_32f_img;
-	cv::Mat gray_32f_edges;
-
-	// convert input color image to grayscale one, CV_BGR2GRAY specifies direction of conversion
-	cv::cvtColor(img, gray_img, CV_BGR2GRAY); 
-	// convert grayscale image from 8 bits to 32 bits, resulting values will be in the interval 0.0 - 1.0
-	gray_img.convertTo(gray_32f_img, CV_32FC1, 1.0 / 255.0); 
-
-	gray_32f_img.copyTo(gray_32f_edges);
+	cv::Mat gray_32f_img = LoadGrayscaleImg(path, CV_32FC1);
+	int cols = gray_32f_img.cols;
+	int rows = gray_32f_img.rows;
 
 	cv::Mat maskFx = cv::Mat(3, 3, CV_32FC1, new float[9]{ -1, 0, 1, -2, 0, 2, -1, 0, 1 });
 	cv::Mat maskFy = cv::Mat(3, 3, CV_32FC1, new float[9]{ -1, -2, -1, 0, 0, 0, 1, 2, 1 });
 
-	int width = gray_32f_img.cols;
-	int heihgt = gray_32f_img.rows;
-	for (int y = 0; y < heihgt; y++)
+	cv::Mat gray_32f_edges(rows, cols, CV_32FC1);
+
+	for (int y = 0; y < rows; y++)
 	{
-		for (int x = 0; x < width; x++)
+		for (int x = 0; x < cols; x++)
 		{
-			float fx = Convolution(gray_32f_img, y, x, maskFx) / 9;
-			float fy = Convolution(gray_32f_img, y, x, maskFy) / 9;
+			float fx = Convolution<float>(gray_32f_img, y, x, maskFx) / 9;
+			float fy = Convolution<float>(gray_32f_img, y, x, maskFy) / 9;
 			float e = sqrt(fx * fx + fy * fy);
 			gray_32f_edges.at<float>(y, x) = e;
 		}
@@ -102,9 +125,44 @@ void Sobel(cv::String path)
 	cv::waitKey(0); // wait until keypressed
 }
 
+void Laplace(cv::String path)
+{
+	cv::Mat gray_32f_img = LoadGrayscaleImg(path, CV_32FC1);
+	cv::imshow("Original", gray_32f_img);
+
+	int cols = gray_32f_img.cols;
+	int rows = gray_32f_img.rows;
+	cv::Mat maskLaplace = cv::Mat(3, 3, CV_32FC1, new float[9]{ 0, 1, 0, 1, -4, 1, 0, 1, 0 });
+
+	cv::Mat gray_32f_edges(rows, cols, CV_32FC1);
+	cv::Mat color_32f3_edges(rows, cols, CV_32FC3);
+
+	gray_32f_img = Gauss<float>(gray_32f_img, CV_32FC1);
+	cv::imshow("Gauss", gray_32f_img);
+
+	for (int y = 0; y < rows; y++)
+	{
+		for (int x = 0; x < cols; x++)
+		{
+			float f = Convolution<float>(gray_32f_img, y, x, maskLaplace);
+			float e = sqrt(f * f);
+			gray_32f_edges.at<float>(y, x) = e;
+			if (f > 0) {
+				color_32f3_edges.at<cv::Vec3f>(y, x) = cv::Vec3f(0, 1, 0);
+			} else if (f < 0) {
+				color_32f3_edges.at<cv::Vec3f>(y, x) = cv::Vec3f(0, 0, 1);
+			}
+		}
+	}
+
+	cv::imshow("Edges", gray_32f_edges);
+	cv::imshow("Colored", color_32f3_edges);
+	cv::waitKey(0); // wait until keypressed
+}
+
 int main(int argc, char* argv[])
 {
-	Sobel("images/valve.png");
+	Laplace("images/valve.png");
 
 	return 0;
 }
