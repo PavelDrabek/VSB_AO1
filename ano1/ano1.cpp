@@ -125,10 +125,10 @@ void Sobel(cv::String path)
 	cv::waitKey(0); // wait until keypressed
 }
 
-void Laplace(cv::String path)
+cv::Mat Laplace(cv::String path)
 {
 	cv::Mat gray_32f_img = LoadGrayscaleImg(path, CV_32FC1);
-	cv::imshow("Original", gray_32f_img);
+	//cv::imshow("Original", gray_32f_img);
 
 	int cols = gray_32f_img.cols;
 	int rows = gray_32f_img.rows;
@@ -138,7 +138,7 @@ void Laplace(cv::String path)
 	cv::Mat color_32f3_edges(rows, cols, CV_32FC3);
 
 	gray_32f_img = Gauss<float>(gray_32f_img, CV_32FC1);
-	cv::imshow("Gauss", gray_32f_img);
+	//cv::imshow("Gauss", gray_32f_img);
 
 	for (int y = 0; y < rows; y++)
 	{
@@ -155,14 +155,66 @@ void Laplace(cv::String path)
 		}
 	}
 
-	cv::imshow("Edges", gray_32f_edges);
-	cv::imshow("Colored", color_32f3_edges);
-	cv::waitKey(0); // wait until keypressed
+	//cv::imshow("Edges", gray_32f_edges);
+	//cv::imshow("Colored", color_32f3_edges);
+
+	return gray_32f_edges;
+}
+
+float LinearInterpolation(float c1, float c2, double t) {
+	return c1 + ((c2 - c1) * t);
+}
+
+int K1 = 3.0, K2 = 1.0;
+int bili = 0;
+cv::Mat img_edge, img_edgeSimplif;
+
+void edge_simplif(cv::Mat& src, cv::Mat& dst, bool bili, double K1 = 1.0, double K2 = 1.0)
+{
+	int cols = src.cols;
+	int rows = src.rows;
+
+	for (int y = 0; y < rows; y++)
+	{
+		for (int x = 0; x < cols; x++)
+		{
+			double angle = atan2(y, x);
+			dst.at<float>(y, x) = K1;
+		}
+	}
+}
+
+void on_change(int id)
+{
+	edge_simplif(img_edge, img_edgeSimplif, bili, K1 / 100.0, K2 / 100.0);
+	cv::imshow("Edge simplification", img_edgeSimplif);
+}
+
+int runEdgeSimplig(std::string path)
+{
+	img_edge = Laplace(path);
+	img_edge.copyTo(img_edgeSimplif);
+
+	cv::imshow("Edge", img_edge);
+
+	//img_edgeSimplif = cvCreateImage(cvGetSize(img_edge), img_edge->depth, img_edge->nChannels);
+	edge_simplif(img_edge, img_edgeSimplif, false, K1 / 100.0, K2 / 100.0);
+
+	cv::imshow("Edge simplification", img_edgeSimplif);
+
+	cvNamedWindow("Geom Dist");
+	cvCreateTrackbar("K1", "Geom Dist", &K1, 1000, on_change);
+	cvCreateTrackbar("K2", "Geom Dist", &K2, 1000, on_change);
+	cvCreateTrackbar("bilinear", "Geom Dist", &bili, 1, on_change);
+
+	cvWaitKey(0);
+
+	return 0;
 }
 
 int main(int argc, char* argv[])
 {
-	Laplace("images/valve.png");
+	runEdgeSimplig("images/valve.png");
 
 	return 0;
 }
