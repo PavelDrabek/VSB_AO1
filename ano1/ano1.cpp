@@ -174,12 +174,20 @@ void edge_simplif(cv::Mat& src, cv::Mat& dst, bool bili, double K1 = 1.0, double
 	int cols = src.cols;
 	int rows = src.rows;
 
+	cv::Mat maskFx = cv::Mat(3, 3, CV_32FC1, new float[9]{ -1, 0, 1, -2, 0, 2, -1, 0, 1 });
+	cv::Mat maskFy = cv::Mat(3, 3, CV_32FC1, new float[9]{ -1, -2, -1, 0, 0, 0, 1, 2, 1 });
+
 	for (int y = 0; y < rows; y++)
 	{
 		for (int x = 0; x < cols; x++)
 		{
-			double angle = atan2(y, x);
-			dst.at<float>(y, x) = K1;
+			float fx = Convolution<float>(src, y, x, maskFx) / 9 + K1;
+			float fy = Convolution<float>(src, y, x, maskFy) / 9;
+
+			float angle = atan2(fy, fx);
+
+			float e = sqrt(fx * fx + fy * fy);
+			dst.at<float>(y, x) = angle;
 		}
 	}
 }
