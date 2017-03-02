@@ -220,10 +220,59 @@ int runEdgeSimplig(std::string path)
 	return 0;
 }
 
+cv::Mat MarkSameObject(cv::Mat& binaryMat, cv::Mat& mat, int sy, int sx, int index)
+{
+	cv::Vec2i lookfor[] { cv::Vec2i(-1, 0), cv::Vec2i(1, 0), cv::Vec2i(0, -1), cv::Vec2i(0, 1) };
+	int lookForSize = 4;
+	std::vector<cv::Vec2i> coords;
+	coords.push_back(cv::Vec2i(sy, sx));
+
+	while (coords.size() > 0) {
+		for (int i = 0; i < lookForSize; i++)
+		{
+			int y = coords[0][0] + lookfor[i][0];
+			int x = coords[0][1] + lookfor[i][1];
+
+			if (x < 0 || x >= mat.cols || y < 0 || y >= mat.rows) {
+				continue;
+			}
+
+			if (binaryMat.at<char>(y, x) == 1 && mat.at<char>(y, x) != index) {
+				mat.at<char>(y, x) = index;
+				coords.push_back(cv::Vec2i(y, x));
+			}
+		}
+	}
+}
+
+cv::Mat IndexObject(cv::Mat binaryMat) {
+	cv::Mat indexMat(binaryMat.rows, binaryMat.cols, CV_8UC1);
+	char objectID = 2;
+	for (int y = 0; y < binaryMat.rows; y++) {
+		for (int x = 0; x < binaryMat.cols; x++) {
+			if (indexMat.at<char>(y, x) == 0) {
+				MarkSameObject(binaryMat, indexMat, y, x, objectID++);
+			}
+		}
+	}
+}
+
+void thresholdImage(std::string path)
+{
+	cv::Mat grayscaleMat = LoadGrayscaleImg(path, CV_32FC1);
+	cv::Mat binaryMat;
+	cv::threshold(grayscaleMat, binaryMat, 0, 1, cv::THRESH_BINARY);
+
+
+
+	cv::imshow("a", binaryMat);
+	cv::waitKey(0);
+}
+
 int main(int argc, char* argv[])
 {
-	runEdgeSimplig("images/valve.png");
-
+	thresholdImage("images/train.png");
+	
 	return 0;
 }
 
