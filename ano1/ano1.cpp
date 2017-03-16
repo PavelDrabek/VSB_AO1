@@ -220,7 +220,30 @@ int runEdgeSimplig(std::string path)
 	return 0;
 }
 
-cv::Mat MarkSameObject(cv::Mat& binaryMat, cv::Mat& mat, int sy, int sx, int index)
+std::string type2str(int type) {
+	std::string r;
+
+	uchar depth = type & CV_MAT_DEPTH_MASK;
+	uchar chans = 1 + (type >> CV_CN_SHIFT);
+
+	switch (depth) {
+	case CV_8U:  r = "8U"; break;
+	case CV_8S:  r = "8S"; break;
+	case CV_16U: r = "16U"; break;
+	case CV_16S: r = "16S"; break;
+	case CV_32S: r = "32S"; break;
+	case CV_32F: r = "32F"; break;
+	case CV_64F: r = "64F"; break;
+	default:     r = "User"; break;
+	}
+
+	r += "C";
+	r += (chans + '0');
+
+	return r;
+}
+
+void MarkSameObject(cv::Mat& binaryMat, cv::Mat& mat, int sy, int sx, int index)
 {
 	cv::Vec2i lookfor[] { cv::Vec2i(-1, 0), cv::Vec2i(1, 0), cv::Vec2i(0, -1), cv::Vec2i(0, 1) };
 	int lookForSize = 4;
@@ -237,24 +260,27 @@ cv::Mat MarkSameObject(cv::Mat& binaryMat, cv::Mat& mat, int sy, int sx, int ind
 				continue;
 			}
 
-			if (binaryMat.at<char>(y, x) == 1 && mat.at<char>(y, x) != index) {
+			if (binaryMat.at<float>(y, x) == 1 && mat.at<char>(y, x) != index) {
 				mat.at<char>(y, x) = index;
 				coords.push_back(cv::Vec2i(y, x));
 			}
 		}
+		coords.erase(coords.begin());
 	}
 }
 
 cv::Mat IndexObject(cv::Mat binaryMat) {
 	cv::Mat indexMat(binaryMat.rows, binaryMat.cols, CV_8UC1);
-	char objectID = 2;
+	int objectID = 2;
 	for (int y = 0; y < binaryMat.rows; y++) {
 		for (int x = 0; x < binaryMat.cols; x++) {
-			if (indexMat.at<char>(y, x) == 0) {
+			float c = binaryMat.at<float>(y, x);
+			if (c == 1) {
 				MarkSameObject(binaryMat, indexMat, y, x, objectID++);
 			}
 		}
 	}
+	return indexMat;
 }
 
 void thresholdImage(std::string path)
@@ -263,8 +289,20 @@ void thresholdImage(std::string path)
 	cv::Mat binaryMat;
 	cv::threshold(grayscaleMat, binaryMat, 0, 1, cv::THRESH_BINARY);
 
+	int max = 0;
 
+	cv::Mat indexed = IndexObject(binaryMat);
+	for (int y = 0; y < indexed.rows; y++) {
+		for (int x = 0; x < indexed.cols; x++) {
+			char c = indexed.at<char>(y, x);
+			if (c > max) {
+				max = c;
+			}
+			indexed.at<char>(y, x) = 20 * c;
+		}
+	}
 
+	cv::imshow("indexed", indexed);
 	cv::imshow("a", binaryMat);
 	cv::waitKey(0);
 }
