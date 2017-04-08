@@ -3,9 +3,13 @@
 
 #include "stdafx.h"
 
+#define SQR(x) ((x)*(x))
+#define RAD(x) ((x) * (M_PI / 180.0))
+#define DEG(x) ((x) * (180.0 / M_PI))
+
 void Tutorial() 
 {
-	cv::Mat img = cv::imread("images/lena.png", CV_LOAD_IMAGE_COLOR); // load color image from file system to Mat variable, this will be loaded using 8 bits (uchar)
+	cv::Mat img = cv::imread("../images/lena.png", CV_LOAD_IMAGE_COLOR); // load color image from file system to Mat variable, this will be loaded using 8 bits (uchar)
 																	  //cv::imshow( "LENA", img );
 	cv::Mat gray_img; // declare variable to hold grayscale version of img variable, gray levels wil be represented using 8 bits (uchar)
 	cv::Mat gray_32f_img; // declare variable to hold grayscale version of img variable, gray levels wil be represented using 32 bits (float)
@@ -165,55 +169,135 @@ float LinearInterpolation(float c1, float c2, double t) {
 	return c1 + ((c2 - c1) * t);
 }
 
-int K1 = 3.0, K2 = 1.0;
+int K1 = 1.0, K2 = 10.0;
 int bili = 0;
 cv::Mat img_edge, img_edgeSimplif;
 
-void edge_simplif(cv::Mat& src, cv::Mat& dst, bool bili, double K1 = 1.0, double K2 = 1.0)
+double ctan(double i) {
+	if (DEG(i) == 90) return 0; // i == 90deg
+	return 1.0 / std::tan(i);
+}
+
+void edge_simplif(cv::Mat& src, cv::Mat& dst, double t1 = 1.0, double t2 = 1.0)
 {
-	int cols = src.cols;
-	int rows = src.rows;
+	dst = cv::Mat::zeros(src.size(), CV_64FC1);
 
-	cv::Mat maskFx = cv::Mat(3, 3, CV_32FC1, new float[9]{ -1, 0, 1, -2, 0, 2, -1, 0, 1 });
-	cv::Mat maskFy = cv::Mat(3, 3, CV_32FC1, new float[9]{ -1, -2, -1, 0, 0, 0, 1, 2, 1 });
+	// Helpers
+	cv::Mat d_64fc1 = cv::Mat::zeros(src.size(), CV_64FC1);
+	cv::Mat edge_64fc1 = cv::Mat::zeros(src.size(), CV_64FC1);
+	cv::Mat ori_64fc1 = cv::Mat::zeros(src.size(), CV_64FC1);
 
-	for (int y = 0; y < rows; y++)
-	{
-		for (int x = 0; x < cols; x++)
-		{
-			float fx = Convolution<float>(src, y, x, maskFx) / 9 + K1;
-			float fy = Convolution<float>(src, y, x, maskFy) / 9;
+	// Derivation
+	for (int y = 1; y < src.rows - 1; y++) {
+		for (int x = 1; x < src.cols - 1; x++) {
+			// Central
+			double c_nx = (src.at<double>(y, x - 1) - src.at<double>(y, x + 1)) / 2.0;
+			double c_ny = (src.at<double>(y - 1, x) - src.at<double>(y + 1, x)) / 2.0;
 
-			float angle = atan2(fy, fx);
+			ori_64fc1.at<double>(y, x) = cv::fastAtan2((float)c_ny, (float)c_nx);
+			d_64fc1.at<double>(y, x) = sqrt(SQR(c_nx) + SQR(c_ny));
+		}
+	}
 
-			float e = sqrt(fx * fx + fy * fy);
-			dst.at<float>(y, x) = angle;
+	// Non-maximum suppression
+	double Ep = 0.0, En = 0.0, E, alpha, oriDeg, oriRad;
+
+	for (int y = 1; y < d_64fc1.rows - 1; y++) {
+		for (int x = 1; x < d_64fc1.cols - 1; x++) {
+			E = d_64fc1.at<double>(y, x);
+			oriDeg = (int)ori_64fc1.at<double>(y, x) % 180;
+			oriRad = RAD(oriDeg);
+
+			// Check for oriDeg in one of 4 octans
+			if (oriDeg >= 0 && oriDeg < 45) {
+				alpha = std::tan(oriRad);
+				Ep = alpha * d_64fc1.at<double>(y + 1, x - 1) + (1 - alpha) * d_64fc1.at<double>(y, x - 1);
+				En = alpha * d_64fc1.at<double>(y - 1, x + 1) + (1 - alpha) * d_64fc1.at<double>(y, x + 1);
+			}
+			else if (oriDeg >= 45 && oriDeg < 90) {
+				alpha = ctan(oriRad);
+				Ep = alpha * d_64fc1.at<double>(y + 1, x - 1) + (1 - alpha) * d_64fc1.at<double>(y + 1, x);
+				En = alpha * d_64fc1.at<double>(y - 1, x + 1) + (1 - alpha) * d_64fc1.at<double>(y - 1, x);
+			}
+			else if (oriDeg >= 90 && oriDeg < 135) {
+				alpha = ctan(oriRad);
+				Ep = alpha * d_64fc1.at<double>(y + 1, x + 1) + (1 - alpha) * d_64fc1.at<double>(y + 1, x);
+				En = alpha * d_64fc1.at<double>(y - 1, x - 1) + (1 - alpha) * d_64fc1.at<double>(y - 1, x);
+			}
+			else if (oriDeg >= 135 && oriDeg < 180) {
+				alpha = std::tan(oriRad);
+				Ep = alpha * d_64fc1.at<double>(y + 1, x + 1) + (1 - alpha) * d_64fc1.at<double>(y, x + 1);
+				En = alpha * d_64fc1.at<double>(y - 1, x - 1) + (1 - alpha) * d_64fc1.at<double>(y, x - 1);
+			}
+
+			// Check if E is maximum
+			if (E > Ep && E > En) {
+				edge_64fc1.at<double>(y, x) = E;
+			}
+		}
+	}
+
+	// Hysteresis
+	cv::Point lookfor[]{
+		cv::Point(1, 1),  cv::Point(1, 0),  cv::Point(1, -1),
+		cv::Point(0, 1),					cv::Point(0, -1),
+		cv::Point(-1, 1), cv::Point(-1, 0), cv::Point(-1, 1) };
+	int lookForSize = 8;
+	std::vector<cv::Point> q;
+
+	for (int y = 0; y < edge_64fc1.rows; y++) {
+		for (int x = 0; x < edge_64fc1.cols; x++) {
+			if (edge_64fc1.at<double>(y, x) > t2) {
+				q.push_back(cv::Point(x, y));
+
+				while (!q.empty()) {
+					cv::Point p = q[q.size() - 1];
+					q.erase(q.begin());
+
+					// Already visited
+					if (dst.at<double>(p) > 0.0) {
+						continue;
+					}
+
+					for (int i = 0; i < lookForSize; i++)
+					{
+						cv::Point pCheck = p + lookfor[i];
+						if (edge_64fc1.at<double>(pCheck) >= t1 && edge_64fc1.at<double>(pCheck) <= t2 &&
+							dst.at<double>(pCheck) <= 0.0) {
+							q.push_back(pCheck);
+						}
+					}
+
+					// Set "visited"
+					dst.at<double>(p) = 1.0;
+				}
+			}
 		}
 	}
 }
 
 void on_change(int id)
 {
-	edge_simplif(img_edge, img_edgeSimplif, bili, K1 / 100.0, K2 / 100.0);
+	edge_simplif(img_edge, img_edgeSimplif, (1+K1) / 100.0, (1+K2) / 100.0);
 	cv::imshow("Edge simplification", img_edgeSimplif);
 }
 
 int runEdgeSimplig(std::string path)
 {
-	img_edge = Laplace(path);
+	img_edge = LoadGrayscaleImg(path, CV_64F);
+	//img_edge.convertTo(img_edge, CV_64F, 1.0);
 	img_edge.copyTo(img_edgeSimplif);
 
-	cv::imshow("Edge", img_edge);
+	cv::imshow("Original", img_edge);
 
 	//img_edgeSimplif = cvCreateImage(cvGetSize(img_edge), img_edge->depth, img_edge->nChannels);
-	edge_simplif(img_edge, img_edgeSimplif, false, K1 / 100.0, K2 / 100.0);
+	edge_simplif(img_edge, img_edgeSimplif, K1 / 100.0, K2 / 100.0);
 
 	cv::imshow("Edge simplification", img_edgeSimplif);
 
-	cvNamedWindow("Geom Dist");
-	cvCreateTrackbar("K1", "Geom Dist", &K1, 1000, on_change);
-	cvCreateTrackbar("K2", "Geom Dist", &K2, 1000, on_change);
-	cvCreateTrackbar("bilinear", "Geom Dist", &bili, 1, on_change);
+	cvNamedWindow("Edge simplification");
+	cvCreateTrackbar("t1", "Edge simplification", &K1, 99, on_change);
+	cvCreateTrackbar("t2", "Edge simplification", &K2, 99, on_change);
 
 	cvWaitKey(0);
 
@@ -309,7 +393,7 @@ void thresholdImage(std::string path)
 
 int main(int argc, char* argv[])
 {
-	thresholdImage("images/train.png");
+	runEdgeSimplig("../images/valve.png");
 	
 	return 0;
 }
