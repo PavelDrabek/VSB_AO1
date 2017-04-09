@@ -1,21 +1,12 @@
 #include "stdafx.h"
-
 #include "Classifier.h"
-#include <random>
-#include <opencv2/opencv.hpp>
-#include <vector>
-#include <time.h>
-
-#include "shape.h"
-#include "group.h"
-
 
 #define SQR(x) ((x) * (x))
 #define RAD(x) ((x) * (M_PI / 180.0))
 #define DEG(x) ((x) * (180.0 / M_PI))
 
 template<typename T>
-int maxIndex(T x, T y, T z) {
+int Classifier::maxIndex(T x, T y, T z) {
 	if (x >= y && x >= z) {
 		return 0;
 	}
@@ -27,12 +18,12 @@ int maxIndex(T x, T y, T z) {
 	}
 }
 
-void threshold(cv::Mat &src, double threshold = 0.5) {
+void Classifier::threshold(cv::Mat &src, double t) {
 	for (int y = 0; y < src.rows; y++) {
 		for (int x = 0; x < src.cols; x++) {
 			double &px = src.at<double>(y, x);
 
-			if (px > threshold) {
+			if (px > t) {
 				px = 1.0;
 			}
 			else {
@@ -42,11 +33,11 @@ void threshold(cv::Mat &src, double threshold = 0.5) {
 	}
 }
 
-cv::Vec3b randomColor() {
+cv::Vec3b Classifier::randomColor() {
 	return cv::Vec3b(rand() % 255, rand() % 255, rand() % 255);
 }
 
-void indexObjects(cv::Mat &src, cv::Mat &dst, std::vector<shape> &shapes) {
+void Classifier::indexObjects(cv::Mat &src, cv::Mat &dst, std::vector<shape> &shapes) {
 	// Index image
 	dst = cv::Mat::zeros(src.size(), CV_8UC1);
 	std::vector<cv::Point> q;
@@ -110,19 +101,19 @@ void indexObjects(cv::Mat &src, cv::Mat &dst, std::vector<shape> &shapes) {
 }
 
 
-double moment(int x, int y, int p, int q) {
+double Classifier::moment(int x, int y, int p, int q) {
 	// In our case we don't need to multiply coordinates with image function
 	// since it's almost the same
 	return std::pow(x, p) * std::pow(y, q); // * f(x,y)
 }
 
-double momentNormalized(int x, int xt, int y, int yt, int p, int q) {
+double Classifier::momentNormalized(int x, int xt, int y, int yt, int p, int q) {
 	// In our case we don't need to multiply coordinates with image function
 	// since it's almost the same
 	return std::pow((x - xt), p) * std::pow((y - yt), q); // * f(x,y)
 }
 
-void momentMinMax(shape &s) {
+void Classifier::momentMinMax(shape &s) {
 	double b = 0.5 * (s.moments.u20 + s.moments.u02);
 	double D = 0.5 * sqrt(4 * SQR(s.moments.u11) + SQR(s.moments.u20 - s.moments.u02));
 
@@ -131,7 +122,7 @@ void momentMinMax(shape &s) {
 }
 
 
-void calcFeatures(cv::Mat &index, std::vector<shape> &shapes) {
+void Classifier::calcFeatures(cv::Mat &index, std::vector<shape> &shapes) {
 	// Calculate moments needed for center of mass
 	for (int y = 0; y < index.rows; y++) {
 		for (int x = 0; x < index.cols; x++) {
@@ -192,9 +183,9 @@ void calcFeatures(cv::Mat &index, std::vector<shape> &shapes) {
 	}
 }
 
-void train(cv::Mat &src, cv::Mat &index, std::vector<shape> &shapes) {
+void Classifier::train(cv::Mat &src, cv::Mat &index, std::vector<shape> &shapes) {
 	// Separate images from background
-	threshold(src);
+	threshold(src, 0.5);
 
 	// Index and extract shapes
 	indexObjects(src, index, shapes);
@@ -203,7 +194,7 @@ void train(cv::Mat &src, cv::Mat &index, std::vector<shape> &shapes) {
 	calcFeatures(index, shapes);
 }
 
-void recognize(std::vector<group> &traingroups, std::vector<shape> &testshapes) {
+void Classifier::recognize(std::vector<group> &traingroups, std::vector<shape> &testshapes) {
 	// minDistance is bigger by default so it's overriden by actual distance when looping
 	double minDistance = 1;
 
@@ -226,7 +217,7 @@ void recognize(std::vector<group> &traingroups, std::vector<shape> &testshapes) 
 	}
 }
 
-void colorIndexedObjects(cv::Mat &src, cv::Mat &dst, std::vector<shape> &shapes) {
+void Classifier::colorIndexedObjects(cv::Mat &src, cv::Mat &dst, std::vector<shape> &shapes) {
 	// Fill destination
 	dst = cv::Mat::zeros(src.size(), CV_8UC3);
 
@@ -242,7 +233,7 @@ void colorIndexedObjects(cv::Mat &src, cv::Mat &dst, std::vector<shape> &shapes)
 	}
 }
 
-void visualizeFeatures(cv::Mat &src, std::vector<shape> &shapes, std::vector<group> &groups, int size = 400) {
+void Classifier::visualizeFeatures(cv::Mat &src, std::vector<shape> &shapes, std::vector<group> &groups, int size) {
 	src = cv::Mat::zeros(size, size, CV_8UC3);
 
 	// Draw grid
@@ -279,15 +270,22 @@ void visualizeFeatures(cv::Mat &src, std::vector<shape> &shapes, std::vector<gro
 	}
 }
 
-void annotate(cv::Mat &src, std::vector<shape> shapes) {
+void Classifier::annotate(cv::Mat &src, std::vector<shape> shapes) {
 	for (auto &&s : shapes) {
+		if (s.group == nullptr) {
+			printf("is nul\n");
+		}
+		else {
+			printf("name 1: %s", s.name);
+			printf("name 2: %d", s.group->id);
+		}
 		std::string name = (s.name.length() <= 0) ? std::to_string(s.id) : s.name;
 		name = (s.group != nullptr && s.name.length() <= 0) ? std::to_string(s.group->id) : name;
 		cv::putText(src, name, s.features.center, CV_FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
 	}
 }
 
-void generateClusters(std::vector<group> &groups, std::vector<shape> &shapes) {
+void Classifier::generateClusters(std::vector<group> &groups, std::vector<shape> &shapes) {
 	double F1 = 0, F2 = 0;
 	int groupCount = 3, groupItemsCount = 4;
 	std::string names[3] = { "Square", "Star", "Rectangle" };
@@ -324,7 +322,7 @@ void generateClusters(std::vector<group> &groups, std::vector<shape> &shapes) {
 	}
 }
 
-int recalculateCenter(std::vector<group> &centroids, std::vector<shape> &shapes) {
+int Classifier::recalculateCenter(std::vector<group> &centroids, std::vector<shape> &shapes) {
 	int changed = 0;
 
 	for (auto &centroid : centroids) {
@@ -352,7 +350,7 @@ int recalculateCenter(std::vector<group> &centroids, std::vector<shape> &shapes)
 	return changed;
 }
 
-void generateClustersKMeans(std::vector<group> &centroids, std::vector<shape> &shapes, int k) {
+void Classifier::generateClustersKMeans(std::vector<group> &centroids, std::vector<shape> &shapes, int k) {
 	// Generate random centroids
 	std::mt19937 rng(time(NULL));
 	std::uniform_real_distribution<double> distribution(0.1, 0.9);
@@ -408,7 +406,7 @@ void generateClustersKMeans(std::vector<group> &centroids, std::vector<shape> &s
 	}
 }
 
-void neuralNetwork(std::vector<shape> &trainshapes, std::vector<shape> &testshapes) {
+void Classifier::neuralNetwork(std::vector<shape> &trainshapes, std::vector<shape> &testshapes) {
 	std::string names[3] = { "Square", "Star", "Rectangle" };
 	int classes[12] = { 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2 };
 	cv::Mat trainData((int)trainshapes.size(), 2, CV_32FC1);

@@ -1,7 +1,6 @@
 #pragma once
 
-#include <opencv2/opencv.hpp>
-#include <ostream>
+//#include "stdafx.h"
 
 struct group;
 

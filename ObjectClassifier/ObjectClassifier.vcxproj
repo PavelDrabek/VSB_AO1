@@ -90,6 +90,7 @@
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>../opencv/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <SDLCheck>true</SDLCheck>
+      <ShowIncludes>true</ShowIncludes>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -141,17 +142,17 @@
     <Text Include="ReadMe.txt" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\ano1\Classifier.h" />
-    <ClInclude Include="..\ano1\group.h" />
-    <ClInclude Include="..\ano1\shape.h" />
+    <ClInclude Include="Classifier.h" />
+    <ClInclude Include="group.h" />
+    <ClInclude Include="shape.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\ano1\Classifier.cpp" />
-    <ClCompile Include="..\ano1\group.cpp" />
-    <ClCompile Include="..\ano1\shape.cpp" />
+    <ClCompile Include="Classifier.cpp" />
+    <ClCompile Include="group.cpp" />
     <ClCompile Include="ObjectClassifier.cpp" />
+    <ClCompile Include="shape.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
