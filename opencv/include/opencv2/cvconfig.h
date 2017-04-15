@@ -26,10 +26,10 @@
 /* #undef HAVE_CARBON */
 
 /* AMD's Basic Linear Algebra Subprograms Library*/
-#define HAVE_CLAMDBLAS
+/* #undef HAVE_CLAMDBLAS */
 
 /* AMD's OpenCL Fast Fourier Transform Library*/
-#define HAVE_CLAMDFFT
+/* #undef HAVE_CLAMDFFT */
 
 /* Clp support */
 /* #undef HAVE_CLP */
@@ -56,11 +56,11 @@
 /* #undef HAVE_DC1394_2 */
 
 /* DirectX */
-#define HAVE_DIRECTX
-#define HAVE_DIRECTX_NV12
-#define HAVE_D3D11
-#define HAVE_D3D10
-#define HAVE_D3D9
+/* #undef HAVE_DIRECTX */
+/* #undef HAVE_DIRECTX_NV12 */
+/* #undef HAVE_D3D11 */
+/* #undef HAVE_D3D10 */
+/* #undef HAVE_D3D9 */
 
 /* DirectShow Video Capture library */
 #define HAVE_DSHOW
@@ -70,12 +70,6 @@
 
 /* FFMpeg video library */
 #define HAVE_FFMPEG
-
-/* ffmpeg's libswscale */
-#define HAVE_FFMPEG_SWSCALE
-
-/* ffmpeg in Gentoo */
-#define HAVE_GENTOO_FFMPEG
 
 /* Geospatial Data Abstraction Library */
 /* #undef HAVE_GDAL */
@@ -111,6 +105,9 @@
 /* libpng/png.h needs to be included */
 /* #undef HAVE_LIBPNG_PNG_H */
 
+/* GDCM DICOM codec */
+/* #undef HAVE_GDCM */
+
 /* V4L/V4L2 capturing support via libv4l */
 /* #undef HAVE_LIBV4L */
 
@@ -120,10 +117,13 @@
 /* NVidia Video Decoding API*/
 /* #undef HAVE_NVCUVID */
 
+/* NVidia Video Encoding API*/
+/* #undef HAVE_NVCUVENC */
+
 /* OpenCL Support */
 #define HAVE_OPENCL
 /* #undef HAVE_OPENCL_STATIC */
-/* #undef HAVE_OPENCL_SVM */
+#define HAVE_OPENCL_SVM
 
 /* OpenEXR codec */
 #define HAVE_OPENEXR
@@ -194,3 +194,15 @@
 
 /* Intel VA-API/OpenCL */
 /* #undef HAVE_VA_INTEL */
+
+/* Lapack */
+/* #undef HAVE_LAPACK */
+
+/* FP16 */
+#define HAVE_FP16
+
+/* Library was compiled with functions instrumentation */
+/* #undef ENABLE_INSTRUMENTATION */
+
+/* OpenVX */
+/* #undef HAVE_OPENVX */
