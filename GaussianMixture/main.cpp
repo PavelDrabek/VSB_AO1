@@ -53,10 +53,10 @@ int main()
 		
 		mog.nextFrame(frame, detection);
 
-		mog.visualize(graph, point, frame.at<cv::Vec3b>(point)[0]);
+		//mog.visualize(graph, point, frame.at<cv::Vec3b>(point)[0]);
+		//cv::imshow("graph", graph);
 
 		drawFPS(frame);
-		cv::imshow("graph", graph);
 		cv::setMouseCallback("frame", CallBackFunc, NULL);
 		cv::imshow("frame", frame);
 		cv::imshow("detection", detection);

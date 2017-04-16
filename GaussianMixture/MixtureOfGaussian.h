@@ -12,7 +12,7 @@ public:
 	void visualize(cv::Mat &dst, cv::Point &center, int x);
 
 private:
-	cv::Mat_<Gaussian> gauss;
+	std::vector<std::vector<std::vector<Gaussian>>> gauss;
 	int N;
 };
 

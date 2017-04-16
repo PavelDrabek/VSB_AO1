@@ -27,25 +27,21 @@ std::string type2str(int type) {
 MixtureOfGaussian::MixtureOfGaussian(cv::Mat mat, int N)
 {
 	this->N = N;
-	const int sz[] = { mat.rows, mat.cols, N };
-	gauss = cv::Mat_<Gaussian>(3, sz);
-
 
 	for (int y = 0; y < mat.rows; y++) {
+		std::vector<std::vector<Gaussian>> col;
 		for (int x = 0; x < mat.cols; x++) {
+			std::vector<Gaussian> cell;
 			for (int i = 0; i < N; i++) {
 				double u = i * (255 / N);
 				double sigma = 255 / N;
-				gauss.at<Gaussian>(y, x, i) = Gaussian(u, sigma, 1.0/N);
-
-				if (i > 0) {
-					Gaussian g1 = gauss.at<Gaussian>(y, x, i-1);
-					Gaussian &g2 = gauss.at<Gaussian>(y, x, i-1);
-					Gaussian *g3 = &gauss.at<Gaussian>(y, x, i-1);
-				}
+				cell.push_back(Gaussian(u, sigma, 1.0/N));
 			}
+			col.push_back(cell);
 		}
+		gauss.push_back(col);
 	}
+	printf("MoG is created");
 }
 
 
@@ -55,18 +51,13 @@ MixtureOfGaussian::~MixtureOfGaussian()
 
 double MixtureOfGaussian::sumP(double X, int y, int x)
 {
+	std::vector<Gaussian> &cell = gauss[y][x];
 	double sum = 0;
 	for (int i = 0; i < N; i++) {
-		Gaussian &g = gauss.at<Gaussian>(y, x, i);
+		Gaussian &g = cell[i];
 		sum += g.p * g.calcP(X);
 	}
 
-	if (sum == 0) {
-		for (int i = 0; i < N; i++) {
-			Gaussian &g = gauss.at<Gaussian>(y, x, i);
-			sum += g.p * g.calcP(X);
-		}
-	}
 	return sum;
 }
 
@@ -74,12 +65,14 @@ void MixtureOfGaussian::nextFrame(cv::Mat &frame, cv::Mat &output)
 {
 	for (int y = 0; y < frame.rows; y++) {
 		for (int x = 0; x < frame.cols; x++) {
+			std::vector<Gaussian> &cell = gauss[y][x];
+
 			double px = (double)frame.at<cv::Vec3b>(y, x)[0];
 			double sum = sumP(px, y, x);
 
-			Gaussian *maxg = &gauss.at<Gaussian>(y, x, 0);
+			Gaussian *maxg = &cell[0];
 			for (int i = 0; i < N; i++) {
-				Gaussian g = gauss.at<Gaussian>(y, x, i);
+				Gaussian& g = cell[i];
 				g.nextValue(px, sum, 0.1, 4);
 				if (g.p > maxg->p) {
 					maxg = &g;
@@ -120,7 +113,7 @@ void MixtureOfGaussian::visualize(cv::Mat &dst, cv::Point &center, int X) {
 
 		// Extract points for each gaussian
 		for (int i = 0; i < N; i++) {
-			double y = gauss.at<Gaussian>(center.y, center.x, i).calcP(x);
+			double y = gauss[center.y][center.x][i].calcP(x);
 			graphsPoint.push_back(cv::Point_<double>(x, y));
 
 			// Find maxY
@@ -156,7 +149,7 @@ void MixtureOfGaussian::visualize(cv::Mat &dst, cv::Point &center, int X) {
 	cv::putText(dst, std::to_string(X), cv::Point(X + 15, 10), CV_FONT_HERSHEY_SIMPLEX, 0.5, cv::Vec3b(255, 255, 255));
 
 	for (int i = 0; i < N; i++) {
-		Gaussian &g = gauss.at<Gaussian>(center.y, center.x, i);
+		Gaussian &g = gauss[center.y][center.x][i];
 		std::stringstream stream;
 		stream << "p: " << std::fixed << std::setprecision(2) << g.p;
 		stream << " u: " << std::fixed << std::setprecision(2) << g.u;
