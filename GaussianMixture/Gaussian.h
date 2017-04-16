@@ -2,7 +2,7 @@
 class Gaussian
 {
 public:
-	Gaussian(double sigma, double u, double p);
+	Gaussian(double u, double sigma, double p);
 	~Gaussian();
 
 	double u;

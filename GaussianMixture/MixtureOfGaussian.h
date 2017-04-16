@@ -12,7 +12,10 @@ public:
 	void visualize(cv::Mat &dst, cv::Point &center, int x);
 
 private:
-	std::vector<std::vector<std::vector<Gaussian>>> gauss;
+	Gaussian* data;
+
+	int getIndex(int y, int x, int i);
+	int rows, cols;
 	int N;
 };
 
