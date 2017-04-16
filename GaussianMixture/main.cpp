@@ -6,6 +6,7 @@
 
 #include <ctime>
 
+int frameCount = 0;
 clock_t t1, t2 = clock();
 void drawFPS(cv::Mat &mat)
 {
@@ -15,6 +16,18 @@ void drawFPS(cv::Mat &mat)
 
 	cv::putText(mat, std::to_string(fps), cvPoint(20, 30),
 		cv::FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(0, 0, 255), 1, CV_AA);
+	cv::putText(mat, std::to_string(frameCount), cvPoint(20, 50),
+		cv::FONT_HERSHEY_COMPLEX_SMALL, 0.8, cvScalar(0, 0, 255), 1, CV_AA);
+
+	frameCount++;
+}
+
+cv::Point point(400, 400);
+void CallBackFunc(int event, int x, int y, int flags, void *userdata) {
+	if (event == CV_EVENT_LBUTTONDOWN) {
+		point.x = x;
+		point.y = y;
+	}
 }
 
 int main()
@@ -27,20 +40,24 @@ int main()
 		return -1;	
 	}
 	
-	cv::Mat frame, detection;
+	cv::Mat frame, detection, graph;
 
 	video >> frame;
 	
 	detection = cv::Mat(frame.rows, frame.cols, CV_8UC1);
 
-	MixtureOfGaussian mog(frame, 5);
+	MixtureOfGaussian mog(frame, 3);
 	while (true) {
 
 		video >> frame;
 		
 		mog.nextFrame(frame, detection);
 
-		drawFPS(detection);
+		mog.visualize(graph, point, frame.at<cv::Vec3b>(point)[0]);
+
+		drawFPS(frame);
+		cv::imshow("graph", graph);
+		cv::setMouseCallback("frame", CallBackFunc, NULL);
 		cv::imshow("frame", frame);
 		cv::imshow("detection", detection);
 		if (cv::waitKey(1) == ' ') {

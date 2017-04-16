@@ -8,6 +8,7 @@
 #define _CRT_SECURE_NO_WARNINGS
 
 #define M_PI 3.14159265359
+#define SQRT_2PI 2.50662827463100
 #define SQR(x) ((x) * (x))
 #define RAD(x) ((x) * (M_PI / 180.0))
 #define DEG(x) ((x) * (180.0 / M_PI))
