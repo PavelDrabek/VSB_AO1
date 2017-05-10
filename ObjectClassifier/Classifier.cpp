@@ -1,29 +1,22 @@
 #include "stdafx.h"
-#include "Classifier.h"
+#include "classifier.h"
 
 #define SQR(x) ((x) * (x))
 #define RAD(x) ((x) * (M_PI / 180.0))
 #define DEG(x) ((x) * (180.0 / M_PI))
 
-template<typename T>
-int Classifier::maxIndex(T x, T y, T z) {
-	if (x >= y && x >= z) {
-		return 0;
-	}
-	else if (y >= x && y >= z) {
-		return 1;
-	}
-	else if (z >= x && z >= y) {
-		return 2;
-	}
+
+
+cv::Vec3b classifier::randomColor() {
+	return cv::Vec3b(rand() % 255, rand() % 255, rand() % 255);
 }
 
-void Classifier::threshold(cv::Mat &src, double t) {
+void classifier::threshold(cv::Mat &src, double threshold) {
 	for (int y = 0; y < src.rows; y++) {
 		for (int x = 0; x < src.cols; x++) {
 			double &px = src.at<double>(y, x);
 
-			if (px > t) {
+			if (px > threshold) {
 				px = 1.0;
 			}
 			else {
@@ -33,26 +26,22 @@ void Classifier::threshold(cv::Mat &src, double t) {
 	}
 }
 
-cv::Vec3b Classifier::randomColor() {
-	return cv::Vec3b(rand() % 255, rand() % 255, rand() % 255);
-}
-
-void Classifier::indexObjects(cv::Mat &src, cv::Mat &dst, std::vector<shape> &shapes) {
+void classifier::indexObjects(cv::Mat &src, cv::Mat &dst, std::vector<Shape> &shapes) {
 	// Index image
 	dst = cv::Mat::zeros(src.size(), CV_8UC1);
-	std::vector<cv::Point> q;
+	std::queue<cv::Point> q;
 	int index = 1;
 
 	for (int y = 0; y < src.rows; y++) {
 		for (int x = 0; x < src.cols; x++) {
 			// Found obj at x,y push to queue
 			if (src.at<double>(y, x) > 0.0 && dst.at<uchar>(y, x) == 0) {
-				q.push_back(cv::Point(x, y));
+				q.push(cv::Point(x, y));
 
 				// [Breadth first search]
 				while (!q.empty()) {
 					cv::Point p = q.front();
-					q.erase(q.begin());
+					q.pop();
 
 					if (dst.at<uchar>(p) != 0) continue;
 
@@ -62,28 +51,28 @@ void Classifier::indexObjects(cv::Mat &src, cv::Mat &dst, std::vector<shape> &sh
 
 					// Check if pixels in neighbourhood are still object
 					if (src.at<double>(pW) > 0.0 && dst.at<uchar>(pW) == 0) {
-						q.push_back(pW);
+						q.push(pW);
 					}
 					if (src.at<double>(pNW) > 0.0 && dst.at<uchar>(pNW) == 0) {
-						q.push_back(pNW);
+						q.push(pNW);
 					}
 					if (src.at<double>(pN) > 0.0 && dst.at<uchar>(pN) == 0) {
-						q.push_back(pN);
+						q.push(pN);
 					}
 					if (src.at<double>(pNE) > 0.0 && dst.at<uchar>(pNE) == 0) {
-						q.push_back(pNE);
+						q.push(pNE);
 					}
 					if (src.at<double>(pE) > 0.0 && dst.at<uchar>(pE) == 0) {
-						q.push_back(pE);
+						q.push(pE);
 					}
 					if (src.at<double>(pSE) > 0.0 && dst.at<uchar>(pSE) == 0) {
-						q.push_back(pSE);
+						q.push(pSE);
 					}
 					if (src.at<double>(pS) > 0.0 && dst.at<uchar>(pS) == 0) {
-						q.push_back(pS);
+						q.push(pS);
 					}
 					if (src.at<double>(pSW) > 0.0 && dst.at<uchar>(pSW) == 0) {
-						q.push_back(pSW);
+						q.push(pSW);
 					}
 
 					// Set "visited"
@@ -91,7 +80,7 @@ void Classifier::indexObjects(cv::Mat &src, cv::Mat &dst, std::vector<shape> &sh
 				}
 
 				// Push new shape
-				shapes.push_back(shape(index, randomColor()));
+				shapes.push_back(Shape(index, randomColor()));
 
 				// Up index for other objects
 				index++;
@@ -101,19 +90,19 @@ void Classifier::indexObjects(cv::Mat &src, cv::Mat &dst, std::vector<shape> &sh
 }
 
 
-double Classifier::moment(int x, int y, int p, int q) {
+double classifier::moment(int x, int y, int p, int q) {
 	// In our case we don't need to multiply coordinates with image function
 	// since it's almost the same
 	return std::pow(x, p) * std::pow(y, q); // * f(x,y)
 }
 
-double Classifier::momentNormalized(int x, int xt, int y, int yt, int p, int q) {
+double classifier::momentNormalized(int x, int xt, int y, int yt, int p, int q) {
 	// In our case we don't need to multiply coordinates with image function
 	// since it's almost the same
 	return std::pow((x - xt), p) * std::pow((y - yt), q); // * f(x,y)
 }
 
-void Classifier::momentMinMax(shape &s) {
+void classifier::momentMinMax(Shape &s) {
 	double b = 0.5 * (s.moments.u20 + s.moments.u02);
 	double D = 0.5 * sqrt(4 * SQR(s.moments.u11) + SQR(s.moments.u20 - s.moments.u02));
 
@@ -122,7 +111,7 @@ void Classifier::momentMinMax(shape &s) {
 }
 
 
-void Classifier::calcFeatures(cv::Mat &index, std::vector<shape> &shapes) {
+void classifier::calcFeatures(cv::Mat &index, std::vector<Shape> &shapes) {
 	// Calculate moments needed for center of mass
 	for (int y = 0; y < index.rows; y++) {
 		for (int x = 0; x < index.cols; x++) {
@@ -137,7 +126,7 @@ void Classifier::calcFeatures(cv::Mat &index, std::vector<shape> &shapes) {
 	}
 
 	// Calculate Center of mass, for other features we'll use normalized function
-	for (shape &s : shapes) {
+	for (Shape &s : shapes) {
 		s.features.center = cv::Point(
 			static_cast<int>(s.moments.m10 / s.moments.m00),
 			static_cast<int>(s.moments.m01 / s.moments.m00)
@@ -153,7 +142,7 @@ void Classifier::calcFeatures(cv::Mat &index, std::vector<shape> &shapes) {
 			if (v == 0) continue;
 
 			// Calculate u00, u20 and u02 moments
-			shape &s = shapes[v - 1];
+			Shape &s = shapes[v - 1];
 			s.moments.u00 += momentNormalized(x, s.features.center.x, y, s.features.center.y, 0, 0);
 			s.moments.u11 += momentNormalized(x, s.features.center.x, y, s.features.center.y, 1, 1);
 			s.moments.u20 += momentNormalized(x, s.features.center.x, y, s.features.center.y, 2, 0);
@@ -176,16 +165,16 @@ void Classifier::calcFeatures(cv::Mat &index, std::vector<shape> &shapes) {
 	}
 
 	// Calculate F1, F2 features
-	for (shape &s : shapes) {
+	for (Shape &s : shapes) {
 		s.features.area = s.moments.m00;
 		s.features.F1 = SQR(s.features.perimeter) / (100 * s.features.area);
 		momentMinMax(s);
 	}
 }
 
-void Classifier::train(cv::Mat &src, cv::Mat &index, std::vector<shape> &shapes) {
+void classifier::train(cv::Mat &src, cv::Mat &index, std::vector<Shape> &shapes) {
 	// Separate images from background
-	threshold(src, 0.5);
+	threshold(src);
 
 	// Index and extract shapes
 	indexObjects(src, index, shapes);
@@ -194,13 +183,13 @@ void Classifier::train(cv::Mat &src, cv::Mat &index, std::vector<shape> &shapes)
 	calcFeatures(index, shapes);
 }
 
-void Classifier::recognize(std::vector<group> &traingroups, std::vector<shape> &testshapes) {
+void classifier::recognize(std::vector<Group> &trainGroups, std::vector<Shape> &testShapes) {
 	// minDistance is bigger by default so it's overriden by actual distance when looping
 	double minDistance = 1;
 
 	// Calculate distance
-	for (shape &s1 : testshapes) {
-		for (group &s2 : traingroups) {
+	for (Shape &s1 : testShapes) {
+		for (Group &s2 : trainGroups) {
 			// Calc distance
 			double distance = sqrt(SQR(s2.F1 - s1.features.F1) + SQR(s2.F2 - s1.features.F2));
 
@@ -217,7 +206,7 @@ void Classifier::recognize(std::vector<group> &traingroups, std::vector<shape> &
 	}
 }
 
-void Classifier::colorIndexedObjects(cv::Mat &src, cv::Mat &dst, std::vector<shape> &shapes) {
+void classifier::colorIndexedObjects(cv::Mat &src, cv::Mat &dst, std::vector<Shape> &shapes) {
 	// Fill destination
 	dst = cv::Mat::zeros(src.size(), CV_8UC3);
 
@@ -233,7 +222,7 @@ void Classifier::colorIndexedObjects(cv::Mat &src, cv::Mat &dst, std::vector<sha
 	}
 }
 
-void Classifier::visualizeFeatures(cv::Mat &src, std::vector<shape> &shapes, std::vector<group> &groups, int size) {
+void classifier::visualizeFeatures(cv::Mat &src, std::vector<Shape> &shapes, std::vector<Group> &groups, int size) {
 	src = cv::Mat::zeros(size, size, CV_8UC3);
 
 	// Draw grid
@@ -270,32 +259,25 @@ void Classifier::visualizeFeatures(cv::Mat &src, std::vector<shape> &shapes, std
 	}
 }
 
-void Classifier::annotate(cv::Mat &src, std::vector<shape> shapes) {
+void classifier::annotate(cv::Mat &src, std::vector<Shape> shapes) {
 	for (auto &&s : shapes) {
-		if (s.group == nullptr) {
-			printf("is nul\n");
-		}
-		else {
-			printf("name 1: %s", s.name);
-			printf("name 2: %d", s.group->id);
-		}
 		std::string name = (s.name.length() <= 0) ? std::to_string(s.id) : s.name;
 		name = (s.group != nullptr && s.name.length() <= 0) ? std::to_string(s.group->id) : name;
 		cv::putText(src, name, s.features.center, CV_FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 255, 255), 2);
 	}
 }
 
-void Classifier::generateClusters(std::vector<group> &groups, std::vector<shape> &shapes) {
+void classifier::generateClusters(std::vector<Group> &groups, std::vector<Shape> &shapes) {
 	double F1 = 0, F2 = 0;
 	int groupCount = 3, groupItemsCount = 4;
 	std::string names[3] = { "Square", "Star", "Rectangle" };
 
 	for (int i = 0; i < groupCount; i++) {
 		// Create group, assign id
-		group g(i);
+		Group g(i);
 
 		for (int j = 0; j < groupItemsCount; j++) {
-			shape &s = shapes[(i * groupItemsCount) + j];
+			Shape &s = shapes[(i * groupItemsCount) + j];
 			F1 += s.features.F1;
 			F2 += s.features.F2;
 
@@ -314,15 +296,15 @@ void Classifier::generateClusters(std::vector<group> &groups, std::vector<shape>
 	}
 
 	// Assign group ID to shape
-	for (group &group : groups) {
-		for (shape *object : group.objects) {
+	for (Group &group : groups) {
+		for (Shape *object : group.objects) {
 			(*object).group = &group;
 			(*object).name = names[group.id];
 		}
 	}
 }
 
-int Classifier::recalculateCenter(std::vector<group> &centroids, std::vector<shape> &shapes) {
+int classifier::recalculateCenter(std::vector<Group> &centroids, std::vector<Shape> &shapes) {
 	int changed = 0;
 
 	for (auto &centroid : centroids) {
@@ -331,7 +313,7 @@ int Classifier::recalculateCenter(std::vector<group> &centroids, std::vector<sha
 		// Skip empty centroids
 		if (centroid.objects.size() <= 0) continue;
 
-		for (const shape *obj : centroid.objects) {
+		for (const Shape *obj : centroid.objects) {
 			F1 += (*obj).features.F1;
 			F2 += (*obj).features.F2;
 		}
@@ -350,12 +332,12 @@ int Classifier::recalculateCenter(std::vector<group> &centroids, std::vector<sha
 	return changed;
 }
 
-void Classifier::generateClustersKMeans(std::vector<group> &centroids, std::vector<shape> &shapes, int k) {
+void classifier::generateClustersKMeans(std::vector<Group> &centroids, std::vector<Shape> &shapes, int k) {
 	// Generate random centroids
 	std::mt19937 rng(time(NULL));
 	std::uniform_real_distribution<double> distribution(0.1, 0.9);
 	for (int i = 0; i < k; i++) {
-		centroids.push_back(group(i, distribution(rng), distribution(rng)));
+		centroids.push_back(Group(i, distribution(rng), distribution(rng)));
 	}
 
 	cv::Mat features;
@@ -366,17 +348,17 @@ void Classifier::generateClustersKMeans(std::vector<group> &centroids, std::vect
 		changed = 0;
 
 		// Clear shapes list assigned to centroids
-		for (group &centroid : centroids) {
+		for (Group &centroid : centroids) {
 			centroid.objects.clear();
 		}
 
 		// Assign each shape to its nearest centroid
-		for (shape &shape : shapes) {
+		for (Shape &shape : shapes) {
 			double minDistance = 1;
-			group *minCentroid = nullptr;
+			Group *minCentroid = nullptr;
 
 			// Calc distance between shape and each centroid, pick the smallest distance centroid
-			for (group &centroid : centroids) {
+			for (Group &centroid : centroids) {
 				double distance = sqrt(SQR(centroid.F1 - shape.features.F1) + SQR(centroid.F2 - shape.features.F2));
 				if (distance < minDistance) {
 					minDistance = distance;
@@ -397,25 +379,25 @@ void Classifier::generateClustersKMeans(std::vector<group> &centroids, std::vect
 		}
 
 		// Visualize features
-		visualizeFeatures(features, shapes, centroids);
-		cv::imshow("Features graph", features);
-		cv::waitKey(0);
+		//classifier::visualizeFeatures(features, shapes, centroids);
+		//cv::imshow("Features graph", features);
+		//cv::waitKey(0);
 
 		// Recalculate center of centroids
 		changed += recalculateCenter(centroids, shapes);
 	}
 }
 
-void Classifier::neuralNetwork(std::vector<shape> &trainshapes, std::vector<shape> &testshapes) {
+void classifier::neuralNetwork(std::vector<Shape> &trainShapes, std::vector<Shape> &testShapes) {
 	std::string names[3] = { "Square", "Star", "Rectangle" };
 	int classes[12] = { 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2 };
-	cv::Mat trainData((int)trainshapes.size(), 2, CV_32FC1);
+	cv::Mat trainData((int)trainShapes.size(), 2, CV_32FC1);
 	cv::Mat trainClasses(trainData.rows, 3, CV_32FC1);
 
 	// Fill train matrix;
 	for (int y = 0; y < trainData.rows; y++) {
-		trainData.at<float>(y, 0) = static_cast<float>(trainshapes[y].features.F1);
-		trainData.at<float>(y, 1) = static_cast<float>(trainshapes[y].features.F2);
+		trainData.at<float>(y, 0) = static_cast<float>(trainShapes[y].features.F1);
+		trainData.at<float>(y, 1) = static_cast<float>(trainShapes[y].features.F2);
 
 		trainClasses.at<float>(y, 0) = 0;
 		trainClasses.at<float>(y, 1) = 0;
@@ -436,10 +418,10 @@ void Classifier::neuralNetwork(std::vector<shape> &trainshapes, std::vector<shap
 	machineBrain->train(trainData, cv::ml::ROW_SAMPLE, trainClasses);
 
 	// Load Test images
-	cv::Mat testData((int)testshapes.size(), 2, CV_32FC1);
+	cv::Mat testData((int)testShapes.size(), 2, CV_32FC1);
 	for (int y = 0; y < testData.rows; y++) {
-		testData.at<float>(y, 0) = static_cast<float>(testshapes[y].features.F1);
-		testData.at<float>(y, 1) = static_cast<float>(testshapes[y].features.F2);
+		testData.at<float>(y, 0) = static_cast<float>(testShapes[y].features.F1);
+		testData.at<float>(y, 1) = static_cast<float>(testShapes[y].features.F2);
 	}
 
 	// Test images
@@ -447,8 +429,8 @@ void Classifier::neuralNetwork(std::vector<shape> &trainshapes, std::vector<shap
 	machineBrain->predict(testData, machineOutput);
 
 	// Fill matched indexes
-	for (int i = 0; i < testshapes.size(); i++) {
-		testshapes[i].name = names[maxIndex<float>(
+	for (int i = 0; i < testShapes.size(); i++) {
+		testShapes[i].name = names[maxIndex<float>(
 			machineOutput.at<float>(i, 0),
 			machineOutput.at<float>(i, 1),
 			machineOutput.at<float>(i, 2)

@@ -125,7 +125,7 @@ void Sobel(cv::String path)
 	}
 
 	cv::imshow("Original", gray_32f_img);
-	cv::imshow("Edges", gray_32f_edges);
+	cv::imshow("Sobel", gray_32f_edges);
 	cv::waitKey(0); // wait until keypressed
 }
 
@@ -159,8 +159,9 @@ cv::Mat Laplace(cv::String path)
 		}
 	}
 
-	//cv::imshow("Edges", gray_32f_edges);
-	//cv::imshow("Colored", color_32f3_edges);
+	cv::imshow("Laplace Edges", gray_32f_edges);
+	cv::imshow("Laplace colored", color_32f3_edges);
+	cv::waitKey(0);
 
 	return gray_32f_edges;
 }
@@ -393,6 +394,8 @@ void thresholdImage(std::string path)
 
 int main(int argc, char* argv[])
 {
+	Sobel("../images/valve.png");
+	Laplace("../images/valve.png");
 	runEdgeSimplig("../images/valve.png");
 	
 	return 0;

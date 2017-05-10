@@ -1,17 +1,19 @@
-#pragma once
+#ifndef VSB_ANO_SHAPE_H
+#define VSB_ANO_SHAPE_H
 
-//#include "stdafx.h"
+#include "stdafx.h"
 
-struct group;
+// Forward declaration
+struct Group;
 
-struct shape {
+struct Shape {
 public:
 	int id;
 	cv::Vec3b color;
 
 	// Shape name (usually after match)
 	std::string name;
-	group *group = nullptr;
+	Group *group = nullptr;
 
 	// Moments
 	union {
@@ -39,11 +41,23 @@ public:
 	} features;
 
 	// Constructor
-	shape(int id, cv::Vec3b color) : id(id), color(color) {}
-	~shape();
+	Shape(int id, cv::Vec3b color) : id(id), color(color) {
+		name = "";
+		features.perimeter = 0;
+		features.area = 0;
+		features.F1 = 0;
+		features.F2 = 0;
+
+		for (int i = 0; i < 7; i++) {
+			moments.data[i] = 0;
+		}
+	}
+	~Shape();
 
 	// Operators
-	friend std::ostream &operator<<(std::ostream &os, const shape &shape);
-	bool operator==(const shape &shape) const;
-	bool operator!=(const shape &shape) const;
+	friend std::ostream &operator<<(std::ostream &os, const Shape &shape);
+	bool operator==(const Shape &shape) const;
+	bool operator!=(const Shape &shape) const;
 };
+
+#endif //VSB_ANO_SHAPE_H

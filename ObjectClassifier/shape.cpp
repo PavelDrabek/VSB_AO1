@@ -1,10 +1,11 @@
+//#include "shape.h"
+//#include "group.h"
 #include "stdafx.h"
-#include "shape.h"
 
-std::ostream &operator<<(std::ostream &os, const shape &shape) {
-	os << "shape: " << shape.id << " name: " << shape.name << std::endl
+std::ostream &operator<<(std::ostream &os, const Shape &shape) {
+	os << "Shape: " << shape.id << " name: " << shape.name << std::endl
 		<< "Color: " << shape.color << std::endl
-		//<< "GroupID: " << ((shape.group != nullptr) ? std::to_string(shape.group->id) : "undefined") << std::endl
+		<< "GroupID: " << ((shape.group != nullptr) ? std::to_string(shape.group->id) : "undefined") << std::endl
 		<< "Moments: " << std::endl
 		<< "  m00: " << shape.moments.m00 << std::endl
 		<< "  m01: " << shape.moments.m01 << std::endl
@@ -23,17 +24,17 @@ std::ostream &operator<<(std::ostream &os, const shape &shape) {
 	return os;
 }
 
-bool shape::operator==(const shape &shape) const {
+bool Shape::operator==(const Shape &shape) const {
 	return id == shape.id &&
 		moments.m00 == shape.moments.m00 &&
 		moments.m01 == shape.moments.m01 &&
 		moments.m10 == shape.moments.m10;
 }
 
-bool shape::operator!=(const shape &shape) const {
+bool Shape::operator!=(const Shape &shape) const {
 	return !(shape == *this);
 }
 
-shape::~shape() {
+Shape::~Shape() {
 	group = nullptr;
 }
